@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Wire Slash</title>
 <script src="https://cdn.jsdelivr.net/npm/tone@15.1.22/build/Tone.js"></script>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.183.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.183.0/examples/jsm/"}}</script>
+
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #2E4E6A; overflow: hidden; font-family: 'Share Tech Mono', 'Courier New', monospace; }
@@ -163,12 +163,18 @@ body { background: #2E4E6A; overflow: hidden; font-family: 'Share Tech Mono', 'C
   <svg id="titleSvg" viewBox="0 0 600 160" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <filter id="glowFilter" x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
-        <feFlood flood-color="#6DAFCF" flood-opacity="0.6" result="color"/>
+        <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
+        <feFlood flood-color="#6DAFCF" flood-opacity="1.0" result="color"/>
         <feComposite in="color" in2="blur" operator="in" result="shadow"/>
         <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
       </filter>
     </defs>
+    <!-- Diffuse outer halo (behind everything) -->
+    <text x="300" y="95" text-anchor="middle"
+      font-family="'Share Tech Mono','Courier New',monospace"
+      font-size="82" font-weight="bold"
+      fill="#6DAFCF" opacity="0.35"
+      filter="url(#glowFilter)">WIRE SLASH</text>
     <!-- Glow behind text -->
     <text x="300" y="95" text-anchor="middle"
       font-family="'Share Tech Mono','Courier New',monospace"
@@ -189,6 +195,11 @@ body { background: #2E4E6A; overflow: hidden; font-family: 'Share Tech Mono', 'C
       font-family="'Share Tech Mono','Courier New',monospace"
       font-size="14" fill="#4A7FA5"
       letter-spacing="4" font-variant="small-caps">CUT THE CONNECTION</text>
+    <!-- Corner brackets -->
+    <polyline points="10,40 10,10 40,10" fill="none" stroke="#4A7FA5" stroke-width="1.5"/>
+    <polyline points="590,40 590,10 560,10" fill="none" stroke="#4A7FA5" stroke-width="1.5"/>
+    <polyline points="10,120 10,150 40,150" fill="none" stroke="#4A7FA5" stroke-width="1.5"/>
+    <polyline points="590,120 590,150 560,150" fill="none" stroke="#4A7FA5" stroke-width="1.5"/>
   </svg>
   <div id="startPrompt">TOUCH TO BEGIN</div>
 </div>
@@ -809,7 +820,6 @@ function spawnPulse() {
     target: route ? route.target : null,
     trapped: route === null,
     trappedBeats: 0,
-    shielded: currentLevel >= 3, // levels 4+: shielded pulses
     glowBright: false,
     speed: def.speed,
     fastBeat: false // alternating for speed=2
@@ -845,9 +855,8 @@ function advancePulses() {
       continue;
     }
 
-    // Speed 2: advance 2 nodes every other beat for high levels
-    const moveTwice = (def.speed === 2 && (levelBeatCount % 2 === 0));
-    const steps = moveTwice ? 2 : 1;
+    // Speed 2: advance def.speed nodes every beat
+    const steps = def.speed;
 
     for (let s = 0; s < steps; s++) {
       if (pulse.trapped) break;
@@ -1292,7 +1301,7 @@ function draw(timestamp) {
 
     if (node.type === 'core') {
       // Core node — near-white glow
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = 20;
       ctx.shadowColor = '#E8F4FD';
       ctx.beginPath();
       ctx.arc(x, y, CORE_RADIUS, 0, Math.PI*2);
@@ -1320,7 +1329,7 @@ function draw(timestamp) {
       const scale = flash ? (1 + 0.4 * (node.flashTimer / 200)) : 1;
       const r = KILL_RADIUS * scale;
 
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 22;
       ctx.shadowColor = '#FF4A1C';
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI*2);
@@ -1360,21 +1369,12 @@ function draw(timestamp) {
     const pos = getPulseDrawPos(pulse);
     const px = pos.x, py = pos.y;
 
-    ctx.shadowBlur = 18;
+    ctx.shadowBlur = 28;
     ctx.shadowColor = '#00FFB3';
     ctx.beginPath();
     ctx.arc(px, py, PULSE_RADIUS, 0, Math.PI*2);
     ctx.fillStyle = pulse.trapped ? '#00CC8A' : '#00FFB3';
     ctx.fill();
-
-    if (pulse.shielded && !pulse.trapped) {
-      ctx.shadowBlur = 0;
-      ctx.beginPath();
-      ctx.arc(px, py, PULSE_RADIUS + 4, 0, Math.PI*2);
-      ctx.strokeStyle = 'rgba(0,255,179,0.4)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
 
     ctx.shadowBlur = 0;
   }
@@ -1384,7 +1384,7 @@ function draw(timestamp) {
   for (const trail of cutTrails) {
     const age = currentTime - trail.addedAt;
     const alpha = Math.max(0, 0.8 * (1 - age / 200));
-    ctx.shadowBlur = 6;
+    ctx.shadowBlur = 10;
     ctx.shadowColor = '#FFFFFF';
     ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
     ctx.lineWidth = 2;
@@ -1400,7 +1400,7 @@ function draw(timestamp) {
     const dx = cutEnd.x - cutStart.x, dy = cutEnd.y - cutStart.y;
     const len = Math.sqrt(dx*dx + dy*dy);
     if (len > 5) {
-      ctx.shadowBlur = 6;
+      ctx.shadowBlur = 10;
       ctx.shadowColor = '#FFFFFF';
       ctx.strokeStyle = 'rgba(255,255,255,0.8)';
       ctx.lineWidth = 2;
@@ -1587,13 +1587,13 @@ function drawStartNetwork(timestamp) {
     const r = n.type==='core' ? 14 : (n.type==='kill'?12:10);
     if (n.type==='kill') {
       const flash = n.flashTimer > 0;
-      ctx.shadowBlur = 12; ctx.shadowColor = '#FF4A1C';
+      ctx.shadowBlur = 22; ctx.shadowColor = '#FF4A1C';
       ctx.beginPath(); ctx.arc(n.x,n.y, r*(flash?1.3:1), 0, Math.PI*2);
       ctx.fillStyle = flash ? '#FF8050' : '#FF4A1C'; ctx.fill();
       if (n.flashTimer>0) n.flashTimer-=16;
       ctx.shadowBlur=0;
     } else if (n.type==='core') {
-      ctx.shadowBlur=8; ctx.shadowColor='#E8F4FD';
+      ctx.shadowBlur=20; ctx.shadowColor='#E8F4FD';
       ctx.beginPath(); ctx.arc(n.x,n.y,r,0,Math.PI*2);
       ctx.fillStyle='#E8F4FD'; ctx.fill(); ctx.shadowBlur=0;
     } else {
@@ -1606,7 +1606,7 @@ function drawStartNetwork(timestamp) {
 
   for (const p of demoPulses) {
     const n = demoNodes[p.currentNode];
-    ctx.shadowBlur=18; ctx.shadowColor='#00FFB3';
+    ctx.shadowBlur=28; ctx.shadowColor='#00FFB3';
     ctx.beginPath(); ctx.arc(n.x,n.y,8,0,Math.PI*2);
     ctx.fillStyle='#00FFB3'; ctx.fill();
     ctx.shadowBlur=0;
