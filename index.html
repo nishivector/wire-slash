@@ -815,6 +815,8 @@ function spawnPulse() {
   const pulse = {
     id: pulseIdCounter++,
     currentNode: spawnId,
+    fromNode: spawnId,
+    moveTime: performance.now(),
     path: route ? route.path : [spawnId],
     pathIdx: 0,
     target: route ? route.target : null,
@@ -913,6 +915,8 @@ function movePulse(pulse, toRemove) {
 
   // Actually move
   const nextId = pulse.path[pulse.pathIdx + 1];
+  pulse.fromNode = pulse.currentNode;
+  pulse.moveTime = performance.now();
   pulse.currentNode = nextId;
   pulse.pathIdx++;
   playTick();
@@ -1204,15 +1208,25 @@ document.getElementById('successScreen').addEventListener('pointerdown', (e) => 
 }, {passive: false});
 
 // ── Draw ─────────────────────────────────────────────────────
-const NODE_RADIUS = 12;
-const PULSE_RADIUS = 8;
-const CORE_RADIUS = 16;
-const KILL_RADIUS = 13;
+const NODE_RADIUS = 16;
+const PULSE_RADIUS = 11;
+const CORE_RADIUS = 20;
+const KILL_RADIUS = 18;
 
 // Interpolation for smooth pulse movement
 function getPulseDrawPos(pulse) {
-  const node = nodes[pulse.currentNode];
-  return { x: node.x, y: node.y };
+  const to = nodes[pulse.currentNode];
+  if (pulse.fromNode === pulse.currentNode || pulse.fromNode == null) {
+    return { x: to.x, y: to.y };
+  }
+  const from = nodes[pulse.fromNode];
+  const elapsed = performance.now() - pulse.moveTime;
+  const t = Math.min(1, elapsed / BEAT_MS);
+  const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // ease in-out quad
+  return {
+    x: from.x + (to.x - from.x) * ease,
+    y: from.y + (to.y - from.y) * ease
+  };
 }
 
 function draw(timestamp) {
@@ -1257,15 +1271,15 @@ function draw(timestamp) {
 
     if (severed) {
       ctx.strokeStyle = '#1A3347';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 5]);
     } else if (hasActivePulse) {
       ctx.strokeStyle = '#6DAFCF';
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 5;
       ctx.setLineDash([]);
     } else {
       ctx.strokeStyle = '#4A7FA5';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 4;
       ctx.setLineDash([]);
     }
     ctx.stroke();
@@ -1402,8 +1416,8 @@ function draw(timestamp) {
     if (len > 5) {
       ctx.shadowBlur = 10;
       ctx.shadowColor = '#FFFFFF';
-      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.moveTo(cutStart.x, cutStart.y);
       ctx.lineTo(cutEnd.x, cutEnd.y);
