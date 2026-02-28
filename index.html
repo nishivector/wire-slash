@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Wire Slash</title>
+<script src="https://cdn.jsdelivr.net/npm/tone@15.1.22/build/Tone.js"></script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.183.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.183.0/examples/jsm/"}}</script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #2E4E6A; overflow: hidden; font-family: 'Share Tech Mono', 'Courier New', monospace; }
+
+#gameCanvas {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  touch-action: none; cursor: crosshair;
+}
+
+#startScreen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 10; pointer-events: none;
+}
+
+#titleSvg { width: 90%; max-width: 600px; }
+
+#startPrompt {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: clamp(14px, 3vw, 20px);
+  color: #6DAFCF;
+  letter-spacing: 0.2em;
+  margin-top: 40px;
+  text-transform: uppercase;
+}
+
+#tapOverlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 20; cursor: pointer; touch-action: none;
+}
+
+#instructScreen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(18, 35, 50, 0.95);
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 30; touch-action: none;
+}
+
+#instructScreen.visible { display: flex; }
+
+.instruct-title {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: clamp(22px, 5vw, 40px);
+  color: #E8F4FD;
+  letter-spacing: 0.15em;
+  margin-bottom: 40px;
+  text-shadow: 0 0 20px #6DAFCF;
+}
+
+.instruct-lines {
+  list-style: none;
+  text-align: center;
+  max-width: 500px;
+  padding: 0 20px;
+}
+
+.instruct-lines li {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: clamp(13px, 2.5vw, 18px);
+  color: #6DAFCF;
+  margin: 16px 0;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+}
+
+.instruct-lines li strong { color: #FF4A1C; }
+.instruct-lines li em { color: #E8F4FD; font-style: normal; }
+
+.instruct-tap {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: clamp(13px, 2.5vw, 18px);
+  color: #4A7FA5;
+  letter-spacing: 0.2em;
+  margin-top: 50px;
+  text-transform: uppercase;
+}
+
+#hud {
+  position: fixed; top: 0; left: 0; width: 100%;
+  display: none; justify-content: space-between; align-items: flex-start;
+  padding: 14px 20px; z-index: 5; pointer-events: none;
+}
+
+#hud.visible { display: flex; }
+
+.hud-text {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: clamp(13px, 2.5vw, 18px);
+  color: #6DAFCF;
+  letter-spacing: 0.1em;
+}
+
+.hud-text span { color: #E8F4FD; }
+
+#gameOverScreen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(18, 35, 50, 0.95);
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 40; touch-action: none;
+}
+#gameOverScreen.visible { display: flex; }
+
+#winScreen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(18, 35, 50, 0.95);
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 40; touch-action: none;
+}
+#winScreen.visible { display: flex; }
+
+.endscreen-title {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: clamp(28px, 6vw, 52px);
+  letter-spacing: 0.15em;
+  margin-bottom: 20px;
+  text-shadow: 0 0 30px currentColor;
+}
+
+.endscreen-score {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: clamp(16px, 3vw, 26px);
+  color: #6DAFCF;
+  margin: 10px 0;
+  letter-spacing: 0.1em;
+}
+
+.endscreen-tap {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: clamp(13px, 2.5vw, 18px);
+  color: #4A7FA5;
+  margin-top: 40px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+#levelBanner {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: clamp(22px, 5vw, 42px);
+  color: #E8F4FD;
+  letter-spacing: 0.2em;
+  text-shadow: 0 0 30px #6DAFCF;
+  z-index: 35; pointer-events: none;
+  opacity: 0; transition: opacity 0.3s;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<!-- START SCREEN -->
+<div id="startScreen">
+  <svg id="titleSvg" viewBox="0 0 600 160" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="glowFilter" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+        <feFlood flood-color="#6DAFCF" flood-opacity="0.6" result="color"/>
+        <feComposite in="color" in2="blur" operator="in" result="shadow"/>
+        <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <!-- Glow behind text -->
+    <text x="300" y="95" text-anchor="middle"
+      font-family="'Share Tech Mono','Courier New',monospace"
+      font-size="80" font-weight="bold"
+      fill="#6DAFCF" opacity="0.6"
+      filter="url(#glowFilter)">WIRE SLASH</text>
+    <!-- Main text -->
+    <text id="titleText" x="300" y="95" text-anchor="middle"
+      font-family="'Share Tech Mono','Courier New',monospace"
+      font-size="80" font-weight="bold"
+      fill="#E8F4FD">WIRE SLASH</text>
+    <!-- Slash mark -->
+    <line id="slashLine" x1="220" y1="130" x2="380" y2="130"
+      stroke="#FF4A1C" stroke-width="2"
+      stroke-dasharray="160" stroke-dashoffset="160"/>
+    <!-- Subtitle -->
+    <text x="300" y="155" text-anchor="middle"
+      font-family="'Share Tech Mono','Courier New',monospace"
+      font-size="14" fill="#4A7FA5"
+      letter-spacing="4" font-variant="small-caps">CUT THE CONNECTION</text>
+  </svg>
+  <div id="startPrompt">TOUCH TO BEGIN</div>
+</div>
+<div id="tapOverlay"></div>
+
+<!-- INSTRUCTIONS SCREEN -->
+<div id="instructScreen">
+  <div class="instruct-title">HOW TO PLAY</div>
+  <ul class="instruct-lines">
+    <li><strong>DRAG</strong> across wires to <em>CUT</em> them</li>
+    <li>Reroute enemy pulses into <strong>ORANGE KILL NODES</strong></li>
+    <li>Protect your <em>CORE</em> — 3 hits and it's over</li>
+    <li>Pulses move every beat — cut fast, think faster</li>
+    <li>Trapped pulses score <em>150 pts/beat</em> · Kill nodes score <em>500 pts</em></li>
+  </ul>
+  <div class="instruct-tap">TAP TO START</div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-text">SCORE <span id="scoreVal">0</span></div>
+  <div class="hud-text">LEVEL <span id="levelVal">1</span> · WAVE <span id="waveVal">1</span></div>
+  <div class="hud-text">CORE <span id="hpVal">♥♥♥</span></div>
+</div>
+
+<!-- LEVEL BANNER -->
+<div id="levelBanner"></div>
+
+<!-- GAME OVER -->
+<div id="gameOverScreen">
+  <div class="endscreen-title" style="color:#FF4A1C">CORE BREACHED</div>
+  <div class="endscreen-score" id="goScore">SCORE: 0</div>
+  <div class="endscreen-tap">TAP TO RESTART</div>
+</div>
+
+<!-- WIN SCREEN -->
+<div id="winScreen">
+  <div class="endscreen-title" style="color:#00FFB3">NETWORK SECURED</div>
+  <div class="endscreen-score" id="winScore">SCORE: 0</div>
+  <div class="endscreen-tap">TAP TO PLAY AGAIN</div>
+</div>
+
+<script type="module">
+// ============================================================
+// WIRE SLASH — Round 16
+// ============================================================
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// ── Resize ──────────────────────────────────────────────────
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', () => { resize(); if (gameState !== 'start') buildLevel(currentLevel); });
+
+// ── State ────────────────────────────────────────────────────
+let gameState = 'start'; // start | instruct | playing | gameover | win
+
+// ── Audio ────────────────────────────────────────────────────
+let audioReady = false;
+let kickSynth, hihatSynth, bassSynth, arpSynth, padSynth, wmHum;
+let sfxCut, sfxTick, sfxKill, sfxCore, sfxSpawn, sfxReroute;
+let skipNextBass = false;
+let killAccent = false;
+let musicDensity = 1; // 0=sparse, 1=full, 0.5=half
+let pressureMode = false;
+let lastBeatTime = 0;
+
+const BPM = 96;
+const BEAT_MS = 60000 / BPM; // 625ms
+
+// Pentatonic B minor: B3 D4 F#4 A4 B4
+const ARP_NOTES = ['B3','D4','F#4','A4','B4','D5','F#5'];
+let arpIdx = 0;
+
+async function initAudio() {
+  await Tone.start();
+  Tone.Transport.bpm.value = BPM;
+
+  // Kick
+  kickSynth = new Tone.MembraneSynth({
+    pitchDecay: 0.08, octaves: 5,
+    envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.2 }
+  }).toDestination();
+  kickSynth.volume.value = -4;
+
+  // Hi-hat
+  hihatSynth = new Tone.MetalSynth({
+    frequency: 600, envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
+    harmonicity: 5, modulationIndex: 32, resonance: 4000, octaves: 1.5
+  }).toDestination();
+  hihatSynth.volume.value = -20;
+
+  // Bass
+  bassSynth = new Tone.Synth({
+    oscillator: { type: 'sine' },
+    envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 0.5 }
+  }).toDestination();
+  bassSynth.volume.value = -10;
+
+  // Arp
+  arpSynth = new Tone.Synth({
+    oscillator: { type: 'square' },
+    envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.05 }
+  }).toDestination();
+  arpSynth.volume.value = -18;
+
+  // Pad
+  padSynth = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'triangle' },
+    envelope: { attack: 0.8, decay: 1.0, sustain: 0.6, release: 2.0 }
+  }).toDestination();
+  padSynth.volume.value = -22;
+
+  // FM hum 120Hz
+  wmHum = new Tone.FMSynth({
+    frequency: 120, harmonicity: 1, modulationIndex: 0.5,
+    envelope: { attack: 2, decay: 0, sustain: 1, release: 2 }
+  }).toDestination();
+  wmHum.volume.value = -30;
+  wmHum.triggerAttack(120);
+
+  // SFX
+  sfxCut = new Tone.Synth({
+    oscillator: { type: 'sawtooth' },
+    envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.01 }
+  }).toDestination();
+  sfxCut.volume.value = -8;
+
+  sfxTick = new Tone.MetalSynth({
+    frequency: 400, envelope: { attack: 0.001, decay: 0.03, release: 0.01 },
+    harmonicity: 3, modulationIndex: 8, resonance: 3000, octaves: 1
+  }).toDestination();
+  sfxTick.volume.value = -18;
+
+  sfxKill = new Tone.FMSynth({
+    frequency: 220, harmonicity: 3.5, modulationIndex: 12,
+    envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.05 }
+  }).toDestination();
+  sfxKill.volume.value = -4;
+
+  const coreReverb = new Tone.Reverb({ decay: 3, wet: 0.8 }).toDestination();
+  sfxCore = new Tone.Synth({
+    oscillator: { type: 'sine' },
+    envelope: { attack: 0.01, decay: 0.6, sustain: 0, release: 0.2 }
+  }).connect(coreReverb);
+  sfxCore.volume.value = -2;
+
+  sfxSpawn = new Tone.PluckSynth({
+    attackNoise: 0.3, resonance: 0.98, dampening: 4000
+  }).toDestination();
+  sfxSpawn.volume.value = -10;
+
+  sfxReroute = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'triangle' },
+    envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.05 }
+  }).toDestination();
+  sfxReroute.volume.value = -12;
+
+  // Beat sequencer
+  Tone.Transport.scheduleRepeat((time) => {
+    lastBeatTime = Tone.Transport.now();
+    onBeat(time);
+  }, '4n');
+
+  Tone.Transport.start();
+  audioReady = true;
+}
+
+let beatCount = 0;
+function onBeat(time) {
+  beatCount++;
+
+  // Kick
+  kickSynth.triggerAttackRelease('C1', '8n', time);
+
+  // Bass (B minor root, skip logic)
+  if (!skipNextBass && (beatCount % 4 === 1)) {
+    const bassNote = ['B1','D2','F#2','A2'][(Math.floor(beatCount/4)) % 4];
+    bassSynth.triggerAttackRelease(bassNote, '2n', time);
+  }
+  skipNextBass = false;
+
+  // Hi-hat
+  const density = pressureMode ? 8 : (musicDensity > 0.5 ? 4 : 2);
+  for (let i = 0; i < density; i++) {
+    const subTime = time + (i * (BEAT_MS/1000) / density);
+    const vel = (i === 0) ? 0.5 : 0.25;
+    hihatSynth.triggerAttackRelease('16n', subTime, vel);
+  }
+
+  // Arp (only when active)
+  if (musicDensity >= 1) {
+    const octaveShift = pressureMode ? 12 : 0;
+    const note = ARP_NOTES[arpIdx % ARP_NOTES.length];
+    arpSynth.triggerAttackRelease(note, '16n', time);
+    arpIdx++;
+  }
+
+  // Pad (every 4 beats)
+  if (beatCount % 4 === 1) {
+    try { padSynth.triggerAttackRelease(['B3','D4','F#4'], '2n', time); } catch(e) {}
+  }
+
+  // Kill accent
+  if (killAccent) {
+    kickSynth.volume.rampTo(-2, 0.05, time);
+    setTimeout(() => { if(kickSynth) kickSynth.volume.rampTo(-4, 0.1); }, 100);
+    killAccent = false;
+  }
+
+  // Advance pulses on beat
+  if (gameState === 'playing') {
+    advancePulses();
+  }
+}
+
+function playCut() {
+  if (!audioReady) return;
+  try {
+    sfxCut.triggerAttackRelease(800, '16n');
+    setTimeout(() => { try { sfxCut.frequency && sfxCut.triggerAttackRelease(200, '16n'); } catch(e){} }, 40);
+    skipNextBass = true;
+  } catch(e) {}
+}
+
+function playTick() {
+  if (!audioReady) return;
+  try { sfxTick.triggerAttackRelease('16n'); } catch(e) {}
+}
+
+function playKill() {
+  if (!audioReady) return;
+  try { sfxKill.triggerAttackRelease(220, '8n'); killAccent = true; } catch(e) {}
+}
+
+function playCore() {
+  if (!audioReady) return;
+  try {
+    sfxCore.triggerAttackRelease(60, '2n');
+    musicDensity = 0;
+    setTimeout(() => { musicDensity = 0.5; }, BEAT_MS);
+    setTimeout(() => { if(musicDensity < 1) musicDensity = 1; }, BEAT_MS * 5);
+  } catch(e) {}
+}
+
+function playSpawn() {
+  if (!audioReady) return;
+  try {
+    const notes = ['B3','D4','F#4'];
+    sfxSpawn.triggerAttackRelease(notes[Math.floor(Math.random()*notes.length)]);
+  } catch(e) {}
+}
+
+function playReroute() {
+  if (!audioReady) return;
+  try { sfxReroute.triggerAttackRelease(['B4','F#5'], '8n'); } catch(e) {}
+}
+
+// ── Level Definitions ────────────────────────────────────────
+// Nodes: {id, x, y (0-1 normalized), type: 'normal'|'kill'|'core'|'spawn'}
+// Edges: [nodeId, nodeId]
+
+const LEVEL_DEFS = [
+  // Level 1: Cold Boot — 12 nodes, 2 kill nodes, linear/Y-split
+  {
+    name: 'COLD BOOT',
+    nodes: [
+      {id:0, xn:0.1, yn:0.5, type:'spawn'},
+      {id:1, xn:0.25, yn:0.5, type:'normal'},
+      {id:2, xn:0.4, yn:0.35, type:'normal'},
+      {id:3, xn:0.4, yn:0.65, type:'normal'},
+      {id:4, xn:0.55, yn:0.25, type:'kill'},
+      {id:5, xn:0.55, yn:0.45, type:'normal'},
+      {id:6, xn:0.55, yn:0.65, type:'normal'},
+      {id:7, xn:0.55, yn:0.80, type:'kill'},
+      {id:8, xn:0.7, yn:0.35, type:'normal'},
+      {id:9, xn:0.7, yn:0.65, type:'normal'},
+      {id:10, xn:0.85, yn:0.5, type:'normal'},
+      {id:11, xn:0.92, yn:0.5, type:'core'}
+    ],
+    edges:[
+      [0,1],[1,2],[1,3],
+      [2,4],[2,5],[3,6],[3,7],
+      [5,8],[6,9],[8,10],[9,10],[10,11]
+    ],
+    spawnNodes:[0],
+    pulsesPerWave:3, waves:2, spawnDelay:6, speed:1
+  },
+  // Level 2: Split Current — 16 nodes, 2 kill nodes
+  {
+    name: 'SPLIT CURRENT',
+    nodes: [
+      {id:0, xn:0.08, yn:0.3, type:'spawn'},
+      {id:1, xn:0.08, yn:0.7, type:'spawn'},
+      {id:2, xn:0.22, yn:0.3, type:'normal'},
+      {id:3, xn:0.22, yn:0.7, type:'normal'},
+      {id:4, xn:0.35, yn:0.5, type:'normal'},
+      {id:5, xn:0.48, yn:0.2, type:'kill'},
+      {id:6, xn:0.48, yn:0.4, type:'normal'},
+      {id:7, xn:0.48, yn:0.6, type:'normal'},
+      {id:8, xn:0.48, yn:0.8, type:'kill'},
+      {id:9, xn:0.62, yn:0.3, type:'normal'},
+      {id:10, xn:0.62, yn:0.7, type:'normal'},
+      {id:11, xn:0.72, yn:0.2, type:'normal'},
+      {id:12, xn:0.72, yn:0.5, type:'normal'},
+      {id:13, xn:0.72, yn:0.8, type:'normal'},
+      {id:14, xn:0.85, yn:0.5, type:'normal'},
+      {id:15, xn:0.93, yn:0.5, type:'core'}
+    ],
+    edges:[
+      [0,2],[1,3],[2,4],[3,4],
+      [4,5],[4,6],[4,7],[4,8],
+      [6,9],[7,10],[9,11],[9,12],[10,12],[10,13],
+      [11,14],[12,14],[13,14],[14,15]
+    ],
+    spawnNodes:[0,1],
+    pulsesPerWave:4, waves:2, spawnDelay:5, speed:1
+  },
+  // Level 3: Feedback Loop — 20 nodes, 3 kill nodes
+  {
+    name: 'FEEDBACK LOOP',
+    nodes: [
+      {id:0, xn:0.08, yn:0.3, type:'spawn'},
+      {id:1, xn:0.08, yn:0.7, type:'spawn'},
+      {id:2, xn:0.22, yn:0.5, type:'normal'},
+      // Ring of 8
+      {id:3, xn:0.38, yn:0.25, type:'normal'},
+      {id:4, xn:0.52, yn:0.18, type:'kill'},
+      {id:5, xn:0.66, yn:0.25, type:'normal'},
+      {id:6, xn:0.72, yn:0.42, type:'normal'},
+      {id:7, xn:0.66, yn:0.58, type:'normal'},
+      {id:8, xn:0.52, yn:0.68, type:'kill'},
+      {id:9, xn:0.38, yn:0.58, type:'normal'},
+      {id:10, xn:0.32, yn:0.42, type:'normal'},
+      // Spurs
+      {id:11, xn:0.52, yn:0.38, type:'normal'},
+      {id:12, xn:0.52, yn:0.52, type:'normal'},
+      {id:13, xn:0.62, yn:0.5, type:'normal'},  // center
+      {id:14, xn:0.80, yn:0.18, type:'kill'},
+      {id:15, xn:0.86, yn:0.35, type:'normal'},
+      {id:16, xn:0.86, yn:0.55, type:'normal'},
+      {id:17, xn:0.80, yn:0.70, type:'normal'},
+      {id:18, xn:0.90, yn:0.45, type:'normal'},
+      {id:19, xn:0.95, yn:0.5, type:'core'}
+    ],
+    edges:[
+      [0,2],[1,2],
+      [2,3],[2,10],
+      // Ring
+      [3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,3],
+      // Cross spurs
+      [3,11],[5,11],[9,12],[7,12],[11,13],[12,13],
+      // Exit
+      [5,14],[6,15],[7,16],[14,18],[15,18],[16,18],[17,18],[18,19],
+      [6,13],[13,18]
+    ],
+    spawnNodes:[0,1],
+    pulsesPerWave:5, waves:3, spawnDelay:4, speed:1
+  },
+  // Level 4: Overload — 22 nodes, 3 kill nodes, speed 2/beat alternating
+  {
+    name: 'OVERLOAD',
+    nodes: [
+      {id:0, xn:0.05, yn:0.2, type:'spawn'},
+      {id:1, xn:0.05, yn:0.5, type:'spawn'},
+      {id:2, xn:0.05, yn:0.8, type:'spawn'},
+      {id:3, xn:0.18, yn:0.2, type:'normal'},
+      {id:4, xn:0.18, yn:0.5, type:'normal'},
+      {id:5, xn:0.18, yn:0.8, type:'normal'},
+      {id:6, xn:0.32, yn:0.1, type:'kill'},
+      {id:7, xn:0.32, yn:0.35, type:'normal'},
+      {id:8, xn:0.32, yn:0.65, type:'normal'},
+      {id:9, xn:0.32, yn:0.9, type:'kill'},
+      {id:10, xn:0.48, yn:0.2, type:'normal'},
+      {id:11, xn:0.48, yn:0.5, type:'normal'},
+      {id:12, xn:0.48, yn:0.8, type:'normal'},
+      {id:13, xn:0.62, yn:0.1, type:'kill'},
+      {id:14, xn:0.62, yn:0.35, type:'normal'},
+      {id:15, xn:0.62, yn:0.65, type:'normal'},
+      {id:16, xn:0.62, yn:0.9, type:'normal'},
+      {id:17, xn:0.75, yn:0.25, type:'normal'},
+      {id:18, xn:0.75, yn:0.5, type:'normal'},
+      {id:19, xn:0.75, yn:0.75, type:'normal'},
+      {id:20, xn:0.88, yn:0.5, type:'normal'},
+      {id:21, xn:0.95, yn:0.5, type:'core'}
+    ],
+    edges:[
+      [0,3],[1,4],[2,5],
+      [3,4],[4,5],[3,6],[3,7],[5,8],[5,9],
+      [7,10],[7,11],[8,11],[8,12],
+      [10,13],[10,14],[11,14],[11,15],[12,15],[12,16],
+      [14,17],[15,18],[16,19],
+      [17,18],[18,19],[17,20],[18,20],[19,20],[20,21]
+    ],
+    spawnNodes:[0,1,2],
+    pulsesPerWave:6, waves:3, spawnDelay:3, speed:2
+  },
+  // Level 5: Cascade — 28 nodes, 4 kill nodes
+  {
+    name: 'CASCADE',
+    nodes: [
+      {id:0, xn:0.04, yn:0.15, type:'spawn'},
+      {id:1, xn:0.04, yn:0.4, type:'spawn'},
+      {id:2, xn:0.04, yn:0.65, type:'spawn'},
+      {id:3, xn:0.04, yn:0.88, type:'spawn'},
+      {id:4, xn:0.15, yn:0.15, type:'normal'},
+      {id:5, xn:0.15, yn:0.4, type:'normal'},
+      {id:6, xn:0.15, yn:0.65, type:'normal'},
+      {id:7, xn:0.15, yn:0.88, type:'normal'},
+      {id:8, xn:0.28, yn:0.08, type:'kill'},
+      {id:9, xn:0.28, yn:0.3, type:'normal'},
+      {id:10, xn:0.28, yn:0.55, type:'normal'},
+      {id:11, xn:0.28, yn:0.78, type:'normal'},
+      {id:12, xn:0.28, yn:0.95, type:'kill'},
+      {id:13, xn:0.42, yn:0.2, type:'normal'},
+      {id:14, xn:0.42, yn:0.45, type:'normal'},
+      {id:15, xn:0.42, yn:0.7, type:'normal'},
+      {id:16, xn:0.55, yn:0.1, type:'kill'},
+      {id:17, xn:0.55, yn:0.35, type:'normal'},
+      {id:18, xn:0.55, yn:0.6, type:'normal'},
+      {id:19, xn:0.55, yn:0.85, type:'kill'},
+      {id:20, xn:0.68, yn:0.25, type:'normal'},
+      {id:21, xn:0.68, yn:0.5, type:'normal'},
+      {id:22, xn:0.68, yn:0.75, type:'normal'},
+      {id:23, xn:0.80, yn:0.2, type:'normal'},
+      {id:24, xn:0.80, yn:0.45, type:'normal'},
+      {id:25, xn:0.80, yn:0.7, type:'normal'},
+      {id:26, xn:0.90, yn:0.45, type:'normal'},
+      {id:27, xn:0.96, yn:0.5, type:'core'}
+    ],
+    edges:[
+      [0,4],[1,5],[2,6],[3,7],
+      [4,5],[5,6],[6,7],
+      [4,8],[4,9],[5,9],[5,10],[6,10],[6,11],[7,11],[7,12],
+      [9,13],[10,14],[11,15],
+      [13,14],[14,15],
+      [13,16],[13,17],[14,17],[14,18],[15,18],[15,19],
+      [17,20],[18,21],[19,22],[16,20],
+      [20,21],[21,22],
+      [20,23],[21,24],[22,25],
+      [23,24],[24,25],
+      [23,26],[24,26],[25,26],[26,27]
+    ],
+    spawnNodes:[0,1,2,3],
+    pulsesPerWave:8, waves:4, spawnDelay:2, speed:2
+  }
+];
+
+// ── Game State ───────────────────────────────────────────────
+let nodes = [];
+let edges = [];
+let pulses = [];
+let severedEdges = new Set();
+let score = 0;
+let multiplier = 1.0;
+let coreHP = 3;
+let currentLevel = 0;
+let currentWave = 0;
+let totalWaves = 2;
+let pulsesToSpawn = 0;
+let spawnDelay = 6;
+let spawnBeatCount = 0;
+let levelBeatCount = 0;
+let noCoreDamageThisLevel = true;
+let pulsesSpawnedThisWave = 0;
+let waveActive = false;
+
+// Cut gesture
+let cutStart = null;
+let cutEnd = null;
+let cutting = false;
+let cutTrails = []; // {x1,y1,x2,y2,alpha}
+
+// Node pixel positions (computed from normalized + canvas size)
+function nx(n) { return n.xn * canvas.width; }
+function ny(n) { return n.yn * canvas.height; }
+
+// ── Dijkstra ─────────────────────────────────────────────────
+function dijkstra(startId, targetType) {
+  // targetType: 'core' | 'kill' | any
+  const dist = {};
+  const prev = {};
+  const visited = new Set();
+  nodes.forEach(n => { dist[n.id] = Infinity; prev[n.id] = null; });
+  dist[startId] = 0;
+
+  const queue = [startId];
+  while (queue.length > 0) {
+    // Find min dist
+    queue.sort((a,b) => dist[a] - dist[b]);
+    const u = queue.shift();
+    if (visited.has(u)) continue;
+    visited.add(u);
+
+    const uNode = nodes[u];
+    // Get neighbors via non-severed edges
+    const neighbors = getNeighbors(u);
+    for (const v of neighbors) {
+      // Can't route through nodes occupied by trapped pulses (unless it's the target)
+      const vNode = nodes[v];
+      const trappedAtV = pulses.some(p => p.trapped && p.currentNode === v);
+      if (trappedAtV && !(targetType === 'core' && vNode.type === 'core') && vNode.type !== 'kill') continue;
+
+      const newDist = dist[u] + 1;
+      if (newDist < dist[v]) {
+        dist[v] = newDist;
+        prev[v] = u;
+        queue.push(v);
+      }
+    }
+  }
+
+  // Find best target
+  let bestTarget = null;
+  let bestDist = Infinity;
+  for (const n of nodes) {
+    if (n.type === targetType && dist[n.id] < bestDist) {
+      bestDist = dist[n.id];
+      bestTarget = n.id;
+    }
+  }
+
+  if (bestTarget === null || dist[bestTarget] === Infinity) return null;
+
+  // Reconstruct path
+  const path = [];
+  let cur = bestTarget;
+  while (cur !== null) { path.unshift(cur); cur = prev[cur]; }
+  return path;
+}
+
+function findPath(startId) {
+  // Try core first
+  let path = dijkstra(startId, 'core');
+  if (path && path.length > 1) return { path, target: 'core' };
+  // Try kill node
+  path = dijkstra(startId, 'kill');
+  if (path && path.length > 1) return { path, target: 'kill' };
+  return null; // trapped
+}
+
+function getNeighbors(nodeId) {
+  const result = [];
+  for (const e of edges) {
+    const key = edgeKey(e[0], e[1]);
+    if (severedEdges.has(key)) continue;
+    if (e[0] === nodeId) result.push(e[1]);
+    else if (e[1] === nodeId) result.push(e[0]);
+  }
+  return result;
+}
+
+function edgeKey(a, b) { return a < b ? `${a}-${b}` : `${b}-${a}`; }
+
+// ── Build Level ──────────────────────────────────────────────
+function buildLevel(levelIdx) {
+  const def = LEVEL_DEFS[levelIdx];
+  const W = canvas.width, H = canvas.height;
+
+  // Margin so nodes don't go to edge
+  const MARGIN_X = 0.04, MARGIN_Y = 0.1;
+  const scaleX = 1 - MARGIN_X * 2;
+  const scaleY = 1 - MARGIN_Y * 2;
+
+  nodes = def.nodes.map(n => ({
+    ...n,
+    x: (MARGIN_X + n.xn * scaleX) * W,
+    y: (MARGIN_Y + n.yn * scaleY) * H,
+    flashTimer: 0 // for kill node flash
+  }));
+  edges = def.edges.map(e => [...e]);
+  severedEdges = new Set();
+  pulses = [];
+  spawnDelay = def.spawnDelay;
+  spawnBeatCount = 0;
+  levelBeatCount = 0;
+  totalWaves = def.waves;
+  currentWave = 0;
+  waveActive = false;
+  pulsesToSpawn = 0;
+  pulsesSpawnedThisWave = 0;
+  noCoreDamageThisLevel = true;
+
+  // Compute paths for any existing pulses (none on fresh build)
+}
+
+function startWave() {
+  const def = LEVEL_DEFS[currentLevel];
+  currentWave++;
+  pulsesToSpawn = def.pulsesPerWave;
+  pulsesSpawnedThisWave = 0;
+  spawnBeatCount = 0;
+  waveActive = true;
+}
+
+// ── Pulse Spawning ───────────────────────────────────────────
+let pulseIdCounter = 0;
+
+function spawnPulse() {
+  const def = LEVEL_DEFS[currentLevel];
+  const spawnNodeIds = def.spawnNodes;
+  // Pick a random spawn node that doesn't have a pulse on it
+  const available = spawnNodeIds.filter(id => !pulses.some(p => p.currentNode === id));
+  if (available.length === 0) return false;
+  const spawnId = available[Math.floor(Math.random() * available.length)];
+
+  const route = findPath(spawnId);
+  const pulse = {
+    id: pulseIdCounter++,
+    currentNode: spawnId,
+    path: route ? route.path : [spawnId],
+    pathIdx: 0,
+    target: route ? route.target : null,
+    trapped: route === null,
+    trappedBeats: 0,
+    shielded: currentLevel >= 3, // levels 4+: shielded pulses
+    glowBright: false,
+    speed: def.speed,
+    fastBeat: false // alternating for speed=2
+  };
+  pulses.push(pulse);
+  playSpawn();
+  return true;
+}
+
+// ── Advance Pulses (called on each beat) ────────────────────
+function advancePulses() {
+  const def = LEVEL_DEFS[currentLevel];
+  levelBeatCount++;
+
+  // Spawn logic
+  if (waveActive) {
+    spawnBeatCount++;
+    if (pulsesSpawnedThisWave < pulsesToSpawn) {
+      if (spawnBeatCount % Math.max(1, def.spawnDelay) === 0 || spawnBeatCount === 1) {
+        if (spawnPulse()) {
+          pulsesSpawnedThisWave++;
+        }
+      }
+    }
+  }
+
+  // Move each pulse
+  const toRemove = [];
+  for (const pulse of pulses) {
+    if (pulse.trapped) {
+      pulse.trappedBeats++;
+      score += Math.round(150 * multiplier);
+      continue;
+    }
+
+    // Speed 2: advance 2 nodes every other beat for high levels
+    const moveTwice = (def.speed === 2 && (levelBeatCount % 2 === 0));
+    const steps = moveTwice ? 2 : 1;
+
+    for (let s = 0; s < steps; s++) {
+      if (pulse.trapped) break;
+      movePulse(pulse, toRemove);
+    }
+  }
+
+  // Remove destroyed pulses
+  for (const pid of toRemove) {
+    const idx = pulses.findIndex(p => p.id === pid);
+    if (idx !== -1) pulses.splice(idx, 1);
+  }
+
+  // Check wave completion
+  checkWaveComplete();
+
+  // Update pressure mode
+  updatePressure();
+
+  // Update music density
+  musicDensity = pulses.length > 0 ? 1 : 0.3;
+}
+
+function movePulse(pulse, toRemove) {
+  if (pulse.pathIdx + 1 >= pulse.path.length) {
+    // Reached end of path — recalculate
+    const route = findPath(pulse.currentNode);
+    if (!route) {
+      pulse.trapped = true;
+      return;
+    }
+    pulse.path = route.path;
+    pulse.pathIdx = 0;
+    pulse.target = route.target;
+  }
+
+  const nextNodeId = pulse.path[pulse.pathIdx + 1];
+  const edgeClear = !severedEdges.has(edgeKey(pulse.currentNode, nextNodeId));
+
+  if (!edgeClear) {
+    // Edge was cut — reroute
+    const route = findPath(pulse.currentNode);
+    if (!route) {
+      pulse.trapped = true;
+      playReroute();
+      return;
+    }
+    pulse.path = route.path;
+    pulse.pathIdx = 0;
+    pulse.target = route.target;
+    playReroute();
+    if (pulse.pathIdx + 1 >= pulse.path.length) { pulse.trapped = true; return; }
+  }
+
+  // Actually move
+  const nextId = pulse.path[pulse.pathIdx + 1];
+  pulse.currentNode = nextId;
+  pulse.pathIdx++;
+  playTick();
+
+  const node = nodes[nextId];
+
+  // Check if entered kill node
+  if (node.type === 'kill') {
+    score += Math.round(500 * multiplier);
+    multiplier = Math.round((multiplier + 0.1) * 10) / 10;
+    node.flashTimer = 200; // ms
+    toRemove.push(pulse.id);
+    playKill();
+    return;
+  }
+
+  // Check if entered core
+  if (node.type === 'core') {
+    coreHP--;
+    multiplier = 1.0;
+    noCoreDamageThisLevel = false;
+    toRemove.push(pulse.id);
+    playCore();
+    if (coreHP <= 0) {
+      triggerGameOver();
+    }
+    return;
+  }
+
+  // Reroute if path is now wrong
+  if (pulse.pathIdx >= pulse.path.length - 1) {
+    const route = findPath(pulse.currentNode);
+    if (!route) { pulse.trapped = true; return; }
+    pulse.path = route.path;
+    pulse.pathIdx = 0;
+    pulse.target = route.target;
+  }
+}
+
+function updatePressure() {
+  // Find core node
+  const coreNode = nodes.find(n => n.type === 'core');
+  if (!coreNode) return;
+  pressureMode = pulses.some(p => {
+    // BFS distance from pulse to core
+    const route = dijkstra(p.currentNode, 'core');
+    return route && route.length <= 4; // within 3 nodes
+  });
+}
+
+// ── Check Wave / Level Complete ──────────────────────────────
+function checkWaveComplete() {
+  if (!waveActive) return;
+  const allSpawned = pulsesSpawnedThisWave >= pulsesToSpawn;
+  const allGone = pulses.every(p => p.trapped || false); // trapped count as gone for wave end? No — only destroyed
+  // Wave ends when all pulses spawned AND none remaining (destroyed or trapped)
+  if (!allSpawned) return;
+
+  // Check if any non-trapped pulses remain
+  const activeLeft = pulses.filter(p => !p.trapped).length;
+  if (activeLeft > 0) return;
+
+  // Wave clear!
+  score += coreHP * 200;
+  waveActive = false;
+
+  if (currentWave >= totalWaves) {
+    // Level clear
+    score += 1000;
+    if (noCoreDamageThisLevel) score = Math.round(score * 1.5);
+
+    currentLevel++;
+    if (currentLevel >= LEVEL_DEFS.length) {
+      triggerWin();
+    } else {
+      showLevelBanner(currentLevel);
+    }
+  } else {
+    // Next wave after a delay
+    setTimeout(() => {
+      if (gameState === 'playing') startWave();
+    }, 2000);
+  }
+}
+
+// ── Level Banner ─────────────────────────────────────────────
+function showLevelBanner(levelIdx) {
+  const banner = document.getElementById('levelBanner');
+  const def = LEVEL_DEFS[levelIdx];
+  banner.textContent = `LEVEL ${levelIdx+1}: ${def.name}`;
+  banner.style.opacity = '1';
+  setTimeout(() => {
+    banner.style.opacity = '0';
+    setTimeout(() => {
+      if (gameState === 'playing') {
+        buildLevel(currentLevel);
+        startWave();
+        updateHUD();
+      }
+    }, 300);
+  }, 2000);
+}
+
+// ── Game Over / Win ──────────────────────────────────────────
+function triggerGameOver() {
+  gameState = 'gameover';
+  document.getElementById('goScore').textContent = `SCORE: ${score}`;
+  document.getElementById('gameOverScreen').classList.add('visible');
+  document.getElementById('hud').classList.remove('visible');
+}
+
+function triggerWin() {
+  gameState = 'win';
+  document.getElementById('winScore').textContent = `SCORE: ${score}`;
+  document.getElementById('winScreen').classList.add('visible');
+  document.getElementById('hud').classList.remove('visible');
+}
+
+function resetGame() {
+  score = 0;
+  multiplier = 1.0;
+  coreHP = 3;
+  currentLevel = 0;
+  beatCount = 0;
+  levelBeatCount = 0;
+  pressureMode = false;
+  musicDensity = 1;
+  cutTrails = [];
+  cutting = false;
+  cutStart = null;
+  cutEnd = null;
+  document.getElementById('gameOverScreen').classList.remove('visible');
+  document.getElementById('winScreen').classList.remove('visible');
+  document.getElementById('hud').classList.add('visible');
+  buildLevel(0);
+  startWave();
+  updateHUD();
+  gameState = 'playing';
+}
+
+function updateHUD() {
+  document.getElementById('scoreVal').textContent = score;
+  document.getElementById('levelVal').textContent = currentLevel + 1;
+  document.getElementById('waveVal').textContent = currentWave;
+  const hearts = '♥'.repeat(coreHP) + '♡'.repeat(3 - coreHP);
+  document.getElementById('hpVal').textContent = hearts;
+}
+
+// ── Cut Detection ────────────────────────────────────────────
+function lineSegmentsIntersect(x1,y1,x2,y2, x3,y3,x4,y4) {
+  const denom = (y4-y3)*(x2-x1) - (x4-x3)*(y2-y1);
+  if (Math.abs(denom) < 0.0001) return false;
+  const ua = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / denom;
+  const ub = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / denom;
+  return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+}
+
+function performCut(sx, sy, ex, ey) {
+  if (gameState !== 'playing') return;
+  const dx = ex - sx, dy = ey - sy;
+  if (Math.sqrt(dx*dx + dy*dy) < 30) return;
+
+  let cut = false;
+  for (const e of edges) {
+    const key = edgeKey(e[0], e[1]);
+    if (severedEdges.has(key)) continue;
+    const na = nodes[e[0]], nb = nodes[e[1]];
+    // Don't cut edges connected to core or kill
+    if (na.type === 'core' || nb.type === 'core') continue;
+    if (na.type === 'kill' || nb.type === 'kill') continue;
+
+    if (lineSegmentsIntersect(sx,sy,ex,ey, na.x,na.y, nb.x,nb.y)) {
+      severedEdges.add(key);
+      cut = true;
+    }
+  }
+
+  if (cut) {
+    playCut();
+    // Reroute all pulses immediately
+    for (const pulse of pulses) {
+      if (!pulse.trapped) {
+        const route = findPath(pulse.currentNode);
+        if (!route) {
+          pulse.trapped = true;
+        } else {
+          pulse.path = route.path;
+          pulse.pathIdx = 0;
+          pulse.target = route.target;
+        }
+      }
+    }
+    updateHUD();
+  }
+
+  // Add cut trail
+  cutTrails.push({ x1:sx, y1:sy, x2:ex, y2:ey, alpha:0.8, addedAt: performance.now() });
+  setTimeout(() => {
+    const idx = cutTrails.findIndex(t => t.x1===sx && t.y1===sy);
+    if (idx !== -1) cutTrails.splice(idx, 1);
+  }, 200);
+}
+
+// ── Pointer Events ───────────────────────────────────────────
+function getCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  };
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (gameState !== 'playing') return;
+  const {x, y} = getCoords(e);
+  cutStart = {x, y};
+  cutEnd = {x, y};
+  cutting = true;
+}, {passive: false});
+
+canvas.addEventListener('pointermove', (e) => {
+  e.preventDefault();
+  if (!cutting) return;
+  const {x, y} = getCoords(e);
+  cutEnd = {x, y};
+}, {passive: false});
+
+canvas.addEventListener('pointerup', (e) => {
+  e.preventDefault();
+  if (!cutting) return;
+  const {x, y} = getCoords(e);
+  if (cutStart) {
+    performCut(cutStart.x, cutStart.y, x, y);
+  }
+  cutting = false;
+  cutStart = null;
+  cutEnd = null;
+}, {passive: false});
+
+canvas.addEventListener('pointercancel', (e) => {
+  cutting = false;
+  cutStart = null;
+  cutEnd = null;
+}, {passive: false});
+
+// ── Start Screen Tap ─────────────────────────────────────────
+const tapOverlay = document.getElementById('tapOverlay');
+const instructScreen = document.getElementById('instructScreen');
+
+tapOverlay.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (gameState === 'start') {
+    // Show instructions
+    gameState = 'instruct';
+    document.getElementById('startScreen').style.display = 'none';
+    tapOverlay.style.display = 'none';
+    instructScreen.classList.add('visible');
+    instructScreen.style.pointerEvents = 'auto';
+
+    // Start audio (non-blocking)
+    initAudio().catch(() => {});
+  }
+}, {passive: false});
+
+instructScreen.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (gameState === 'instruct') {
+    instructScreen.classList.remove('visible');
+    instructScreen.style.pointerEvents = 'none';
+    document.getElementById('hud').classList.add('visible');
+    buildLevel(0);
+    startWave();
+    updateHUD();
+    gameState = 'playing';
+    showLevelBanner(0);
+  }
+}, {passive: false});
+
+document.getElementById('gameOverScreen').addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (gameState === 'gameover') resetGame();
+}, {passive: false});
+
+document.getElementById('winScreen').addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (gameState === 'win') resetGame();
+}, {passive: false});
+
+// ── Draw ─────────────────────────────────────────────────────
+const NODE_RADIUS = 12;
+const PULSE_RADIUS = 8;
+const CORE_RADIUS = 16;
+const KILL_RADIUS = 13;
+
+// Interpolation for smooth pulse movement
+function getPulseDrawPos(pulse) {
+  const node = nodes[pulse.currentNode];
+  return { x: node.x, y: node.y };
+}
+
+function draw(timestamp) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#2E4E6A';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (gameState === 'start') {
+    drawStartNetwork(timestamp);
+    return;
+  }
+
+  if (gameState === 'instruct' || gameState === 'gameover' || gameState === 'win') {
+    // Just draw background
+    return;
+  }
+
+  if (gameState !== 'playing') return;
+
+  const now = timestamp;
+
+  // ── Draw Wires ──
+  for (const e of edges) {
+    const key = edgeKey(e[0], e[1]);
+    const severed = severedEdges.has(key);
+    const na = nodes[e[0]], nb = nodes[e[1]];
+
+    // Check if any pulse is on this edge (between these nodes)
+    const hasActivePulse = pulses.some(p => {
+      if (p.pathIdx > 0) {
+        const prev = p.path[p.pathIdx - 1];
+        const curr = p.path[p.pathIdx];
+        return (prev === e[0] && curr === e[1]) || (prev === e[1] && curr === e[0]);
+      }
+      return false;
+    });
+
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.moveTo(na.x, na.y);
+    ctx.lineTo(nb.x, nb.y);
+
+    if (severed) {
+      ctx.strokeStyle = '#1A3347';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+    } else if (hasActivePulse) {
+      ctx.strokeStyle = '#6DAFCF';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([]);
+    } else {
+      ctx.strokeStyle = '#4A7FA5';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // ── Cut preview highlight ──
+  if (cutting && cutStart && cutEnd) {
+    // Highlight edges that would be cut
+    for (const e of edges) {
+      const key = edgeKey(e[0], e[1]);
+      if (severedEdges.has(key)) continue;
+      const na = nodes[e[0]], nb = nodes[e[1]];
+      if (na.type === 'core' || nb.type === 'core') continue;
+      if (na.type === 'kill' || nb.type === 'kill') continue;
+      if (lineSegmentsIntersect(cutStart.x, cutStart.y, cutEnd.x, cutEnd.y, na.x, na.y, nb.x, nb.y)) {
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = '#FFFFFF';
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(na.x, na.y);
+        ctx.lineTo(nb.x, nb.y);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+    }
+  }
+
+  // ── Draw Nodes ──
+  for (const node of nodes) {
+    const x = node.x, y = node.y;
+
+    if (node.type === 'core') {
+      // Core node — near-white glow
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = '#E8F4FD';
+      ctx.beginPath();
+      ctx.arc(x, y, CORE_RADIUS, 0, Math.PI*2);
+      ctx.fillStyle = '#E8F4FD';
+      ctx.fill();
+      // HP circles
+      ctx.shadowBlur = 0;
+      for (let i = 0; i < 3; i++) {
+        const angle = (Math.PI * 2 / 3) * i - Math.PI/2;
+        const cx = x + Math.cos(angle) * (CORE_RADIUS + 10);
+        const cy = y + Math.sin(angle) * (CORE_RADIUS + 10);
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4, 0, Math.PI*2);
+        ctx.fillStyle = i < coreHP ? '#E8F4FD' : '#1A3347';
+        ctx.fill();
+        ctx.strokeStyle = '#4A7FA5';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+
+    } else if (node.type === 'kill') {
+      // Kill node
+      const flash = node.flashTimer > 0;
+      const scale = flash ? (1 + 0.4 * (node.flashTimer / 200)) : 1;
+      const r = KILL_RADIUS * scale;
+
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#FF4A1C';
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI*2);
+      ctx.fillStyle = flash ? '#FF8050' : '#FF4A1C';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      if (node.flashTimer > 0) node.flashTimer -= 16;
+      if (node.flashTimer < 0) node.flashTimer = 0;
+
+    } else if (node.type === 'spawn') {
+      // Spawn node
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(x, y, NODE_RADIUS, 0, Math.PI*2);
+      ctx.strokeStyle = '#4A7FA5';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#1A3347';
+      ctx.fill();
+
+    } else {
+      // Normal node
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(x, y, NODE_RADIUS, 0, Math.PI*2);
+      ctx.fillStyle = '#2E4E6A';
+      ctx.fill();
+      ctx.strokeStyle = '#4A7FA5';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
+  // ── Draw Pulses ──
+  for (const pulse of pulses) {
+    const pos = getPulseDrawPos(pulse);
+    const px = pos.x, py = pos.y;
+
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = '#00FFB3';
+    ctx.beginPath();
+    ctx.arc(px, py, PULSE_RADIUS, 0, Math.PI*2);
+    ctx.fillStyle = pulse.trapped ? '#00CC8A' : '#00FFB3';
+    ctx.fill();
+
+    if (pulse.shielded && !pulse.trapped) {
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(px, py, PULSE_RADIUS + 4, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(0,255,179,0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    ctx.shadowBlur = 0;
+  }
+
+  // ── Draw Cut Trail ──
+  const currentTime = performance.now();
+  for (const trail of cutTrails) {
+    const age = currentTime - trail.addedAt;
+    const alpha = Math.max(0, 0.8 * (1 - age / 200));
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = '#FFFFFF';
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(trail.x1, trail.y1);
+    ctx.lineTo(trail.x2, trail.y2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // ── Draw Active Cut Line ──
+  if (cutting && cutStart && cutEnd) {
+    const dx = cutEnd.x - cutStart.x, dy = cutEnd.y - cutStart.y;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    if (len > 5) {
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = '#FFFFFF';
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cutStart.x, cutStart.y);
+      ctx.lineTo(cutEnd.x, cutEnd.y);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // Update HUD score
+  document.getElementById('scoreVal').textContent = score;
+  document.getElementById('hpVal').textContent = '♥'.repeat(coreHP) + '♡'.repeat(3-coreHP);
+}
+
+// ── Start Screen Demo Network ────────────────────────────────
+let demoNodes = [];
+let demoEdges = [];
+let demoPulses = [];
+let demoSevered = new Set();
+let demoRegenTimers = [];
+let demoBeat = 0;
+let demoLastBeat = 0;
+let slashDashOffset = 160;
+let titlePulse = 0;
+let blinkOn = true;
+let blinkTimer = 0;
+
+function initDemoNetwork() {
+  const W = canvas.width, H = canvas.height;
+  const cx = W * 0.5, cy = H * 0.5;
+  const spread = Math.min(W, H) * 0.32;
+
+  demoNodes = [
+    {id:0, x:cx-spread, y:cy, type:'spawn'},
+    {id:1, x:cx-spread*0.5, y:cy-spread*0.3, type:'normal'},
+    {id:2, x:cx-spread*0.5, y:cy+spread*0.3, type:'normal'},
+    {id:3, x:cx, y:cy-spread*0.4, type:'kill'},
+    {id:4, x:cx, y:cy+spread*0.4, type:'kill'},
+    {id:5, x:cx+spread*0.4, y:cy-spread*0.2, type:'normal'},
+    {id:6, x:cx+spread*0.4, y:cy+spread*0.2, type:'normal'},
+    {id:7, x:cx+spread, y:cy, type:'core'}
+  ];
+  demoEdges = [[0,1],[0,2],[1,3],[1,5],[2,4],[2,6],[3,5],[4,6],[5,7],[6,7]];
+  demoPulses = [];
+  demoSevered = new Set();
+  demoRegenTimers = [];
+}
+
+function demoEdgeKey(a,b) { return a<b?`${a}-${b}`:`${b}-${a}`; }
+
+function getDemoNeighbors(nid) {
+  const r = [];
+  for (const e of demoEdges) {
+    const k = demoEdgeKey(e[0],e[1]);
+    if (demoSevered.has(k)) continue;
+    if (e[0]===nid) r.push(e[1]);
+    else if (e[1]===nid) r.push(e[0]);
+  }
+  return r;
+}
+
+function demoDijkstra(startId) {
+  const dist = {};
+  const prev = {};
+  demoNodes.forEach(n => { dist[n.id]=Infinity; prev[n.id]=null; });
+  dist[startId] = 0;
+  const q = [...demoNodes.map(n=>n.id)];
+  while (q.length>0) {
+    q.sort((a,b)=>dist[a]-dist[b]);
+    const u = q.shift();
+    const neighbors = getDemoNeighbors(u);
+    for (const v of neighbors) {
+      const d = dist[u]+1;
+      if (d<dist[v]) { dist[v]=d; prev[v]=u; }
+    }
+  }
+  // Find kill or core
+  let best = null, bd = Infinity;
+  for (const n of demoNodes) {
+    if ((n.type==='kill'||n.type==='core') && dist[n.id]<bd) { bd=dist[n.id]; best=n.id; }
+  }
+  if (!best || dist[best]===Infinity) return [startId];
+  const path=[];let c=best;
+  while(c!==null){path.unshift(c);c=prev[c];}
+  return path;
+}
+
+function demoSpawnPulse() {
+  const path = demoDijkstra(0);
+  demoPulses.push({ currentNode:0, path, pathIdx:0, flashTimer:0 });
+}
+
+function demoAICut() {
+  // Cut 1-2 random non-core non-kill edges
+  const cuttable = demoEdges.filter(e => {
+    const k = demoEdgeKey(e[0],e[1]);
+    if (demoSevered.has(k)) return false;
+    const na = demoNodes[e[0]], nb = demoNodes[e[1]];
+    return na.type!=='core' && nb.type!=='core' && na.type!=='kill' && nb.type!=='kill';
+  });
+  const numCuts = Math.min(2, cuttable.length);
+  for (let i=0;i<numCuts;i++) {
+    if (cuttable.length===0) break;
+    const idx = Math.floor(Math.random()*cuttable.length);
+    const e = cuttable.splice(idx,1)[0];
+    const k = demoEdgeKey(e[0],e[1]);
+    demoSevered.add(k);
+    // Regen after 1.5s
+    setTimeout(()=>{ demoSevered.delete(k); }, 1500);
+  }
+  // Reroute pulses
+  for (const p of demoPulses) {
+    p.path = demoDijkstra(p.currentNode);
+    p.pathIdx = 0;
+  }
+}
+
+function drawStartNetwork(timestamp) {
+  const now = timestamp;
+  const elapsed = now - demoLastBeat;
+
+  // Beat tick
+  if (elapsed > BEAT_MS) {
+    demoLastBeat = now;
+    demoBeat++;
+
+    // Spawn pulse every 3 beats
+    if (demoBeat % 3 === 0 && demoPulses.length < 3) {
+      demoSpawnPulse();
+    }
+
+    // AI cut every 4 beats
+    if (demoBeat % 4 === 0) {
+      demoAICut();
+    }
+
+    // Move pulses
+    for (const p of [...demoPulses]) {
+      if (p.pathIdx + 1 < p.path.length) {
+        p.currentNode = p.path[p.pathIdx+1];
+        p.pathIdx++;
+        const node = demoNodes[p.currentNode];
+        if (node.type==='kill') {
+          node.flashTimer = 200;
+          demoPulses.splice(demoPulses.indexOf(p),1);
+        } else if (node.type==='core') {
+          demoPulses.splice(demoPulses.indexOf(p),1);
+        }
+      } else {
+        demoPulses.splice(demoPulses.indexOf(p),1);
+      }
+    }
+
+    // Title pulse animation
+    titlePulse = (titlePulse + 1) % 4;
+
+    // Blink
+    blinkTimer += BEAT_MS;
+    if (blinkTimer >= 312) {
+      blinkOn = !blinkOn;
+      blinkTimer = 0;
+    }
+  }
+
+  // Draw demo network
+  for (const e of demoEdges) {
+    const k = demoEdgeKey(e[0],e[1]);
+    const severed = demoSevered.has(k);
+    const na = demoNodes[e[0]], nb = demoNodes[e[1]];
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.moveTo(na.x, na.y);
+    ctx.lineTo(nb.x, nb.y);
+    ctx.strokeStyle = severed ? '#1A3347' : '#4A7FA5';
+    ctx.lineWidth = severed ? 1 : 2;
+    ctx.setLineDash(severed ? [4,4] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  for (const n of demoNodes) {
+    const r = n.type==='core' ? 14 : (n.type==='kill'?12:10);
+    if (n.type==='kill') {
+      const flash = n.flashTimer > 0;
+      ctx.shadowBlur = 12; ctx.shadowColor = '#FF4A1C';
+      ctx.beginPath(); ctx.arc(n.x,n.y, r*(flash?1.3:1), 0, Math.PI*2);
+      ctx.fillStyle = flash ? '#FF8050' : '#FF4A1C'; ctx.fill();
+      if (n.flashTimer>0) n.flashTimer-=16;
+      ctx.shadowBlur=0;
+    } else if (n.type==='core') {
+      ctx.shadowBlur=8; ctx.shadowColor='#E8F4FD';
+      ctx.beginPath(); ctx.arc(n.x,n.y,r,0,Math.PI*2);
+      ctx.fillStyle='#E8F4FD'; ctx.fill(); ctx.shadowBlur=0;
+    } else {
+      ctx.shadowBlur=0;
+      ctx.beginPath(); ctx.arc(n.x,n.y,r,0,Math.PI*2);
+      ctx.fillStyle='#2E4E6A'; ctx.fill();
+      ctx.strokeStyle='#4A7FA5'; ctx.lineWidth=1.5; ctx.stroke();
+    }
+  }
+
+  for (const p of demoPulses) {
+    const n = demoNodes[p.currentNode];
+    ctx.shadowBlur=18; ctx.shadowColor='#00FFB3';
+    ctx.beginPath(); ctx.arc(n.x,n.y,8,0,Math.PI*2);
+    ctx.fillStyle='#00FFB3'; ctx.fill();
+    ctx.shadowBlur=0;
+  }
+
+  // Animate slash line
+  slashDashOffset = Math.max(0, slashDashOffset - 2);
+  const slashLine = document.getElementById('slashLine');
+  if (slashLine) {
+    slashLine.setAttribute('stroke-dashoffset', slashDashOffset);
+    if (slashDashOffset <= 0) {
+      setTimeout(() => { slashDashOffset = 160; }, 2500);
+    }
+  }
+
+  // Blink start prompt
+  const prompt = document.getElementById('startPrompt');
+  if (prompt) prompt.style.opacity = blinkOn ? '1' : '0';
+
+  // Title glow pulse
+  const glow = document.getElementById('glowFilter');
+  if (glow) {
+    const gb = glow.querySelector('feGaussianBlur');
+    if (gb) {
+      const sd = 3 + 3 * Math.sin((now / BEAT_MS) * Math.PI * 2);
+      gb.setAttribute('stdDeviation', sd.toFixed(1));
+    }
+  }
+}
+
+// ── Main Loop ────────────────────────────────────────────────
+function loop(timestamp) {
+  draw(timestamp);
+  requestAnimationFrame(loop);
+}
+
+// Init demo on start
+initDemoNetwork();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
