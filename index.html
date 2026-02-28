@@ -365,43 +365,45 @@ let beatCount = 0;
 function onBeat(time) {
   beatCount++;
 
-  // Kick
-  kickSynth.triggerAttackRelease('C1', '8n', time);
+  try {
+    // Kick
+    kickSynth.triggerAttackRelease('C1', '8n', time);
 
-  // Bass (B minor root, skip logic)
-  if (!skipNextBass && (beatCount % 4 === 1)) {
-    const bassNote = ['B1','D2','F#2','A2'][(Math.floor(beatCount/4)) % 4];
-    bassSynth.triggerAttackRelease(bassNote, '2n', time);
-  }
-  skipNextBass = false;
+    // Bass (B minor root, skip logic)
+    if (!skipNextBass && (beatCount % 4 === 1)) {
+      const bassNote = ['B1','D2','F#2','A2'][(Math.floor(beatCount/4)) % 4];
+      bassSynth.triggerAttackRelease(bassNote, '2n', time);
+    }
+    skipNextBass = false;
 
-  // Hi-hat
-  const density = pressureMode ? 8 : (musicDensity > 0.5 ? 4 : 2);
-  for (let i = 0; i < density; i++) {
-    const subTime = time + (i * (BEAT_MS/1000) / density);
-    const vel = (i === 0) ? 0.5 : 0.25;
-    hihatSynth.triggerAttackRelease('16n', subTime, vel);
-  }
+    // Hi-hat — schedule subdivisions using Tone.Transport lookahead
+    const density = pressureMode ? 8 : (musicDensity > 0.5 ? 4 : 2);
+    const beatSec = 60 / BPM;
+    for (let i = 0; i < density; i++) {
+      const subTime = time + i * (beatSec / density);
+      const vel = (i === 0) ? 0.5 : 0.25;
+      try { hihatSynth.triggerAttackRelease('16n', subTime, vel); } catch(e2) {}
+    }
 
-  // Arp (only when active)
-  if (musicDensity >= 1) {
-    const octaveShift = pressureMode ? 12 : 0;
-    const note = ARP_NOTES[arpIdx % ARP_NOTES.length];
-    arpSynth.triggerAttackRelease(note, '16n', time);
-    arpIdx++;
-  }
+    // Arp (only when active)
+    if (musicDensity >= 1) {
+      const note = ARP_NOTES[arpIdx % ARP_NOTES.length];
+      try { arpSynth.triggerAttackRelease(note, '16n', time); } catch(e2) {}
+      arpIdx++;
+    }
 
-  // Pad (every 4 beats)
-  if (beatCount % 4 === 1) {
-    try { padSynth.triggerAttackRelease(['B3','D4','F#4'], '2n', time); } catch(e) {}
-  }
+    // Pad (every 4 beats)
+    if (beatCount % 4 === 1) {
+      try { padSynth.triggerAttackRelease(['B3','D4','F#4'], '2n', time); } catch(e2) {}
+    }
 
-  // Kill accent
-  if (killAccent) {
-    kickSynth.volume.rampTo(-2, 0.05, time);
-    setTimeout(() => { if(kickSynth) kickSynth.volume.rampTo(-4, 0.1); }, 100);
-    killAccent = false;
-  }
+    // Kill accent
+    if (killAccent) {
+      try { kickSynth.volume.rampTo(-2, 0.05, time); } catch(e2) {}
+      setTimeout(() => { try { kickSynth && kickSynth.volume.rampTo(-4, 0.1); } catch(e3){} }, 100);
+      killAccent = false;
+    }
+  } catch(e) {}
 
   // Advance pulses on beat
   if (gameState === 'playing') {
@@ -956,9 +958,9 @@ function updatePressure() {
 // ── Check Wave / Level Complete ──────────────────────────────
 function checkWaveComplete() {
   if (!waveActive) return;
+  if (pulsesToSpawn <= 0) return; // safety guard
   const allSpawned = pulsesSpawnedThisWave >= pulsesToSpawn;
-  const allGone = pulses.every(p => p.trapped || false); // trapped count as gone for wave end? No — only destroyed
-  // Wave ends when all pulses spawned AND none remaining (destroyed or trapped)
+  // Wave ends when all pulses spawned AND none remaining active
   if (!allSpawned) return;
 
   // Check if any non-trapped pulses remain
@@ -1152,12 +1154,14 @@ canvas.addEventListener('pointercancel', (e) => {
 // ── Start Screen Tap ─────────────────────────────────────────
 const tapOverlay = document.getElementById('tapOverlay');
 const instructScreen = document.getElementById('instructScreen');
+let instructReadyAt = 0;
 
 tapOverlay.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   if (gameState === 'start') {
     // Show instructions
     gameState = 'instruct';
+    instructReadyAt = performance.now() + 500; // debounce 500ms
     document.getElementById('startScreen').style.display = 'none';
     tapOverlay.style.display = 'none';
     instructScreen.classList.add('visible');
@@ -1170,12 +1174,11 @@ tapOverlay.addEventListener('pointerdown', (e) => {
 
 instructScreen.addEventListener('pointerdown', (e) => {
   e.preventDefault();
-  if (gameState === 'instruct') {
+  if (gameState === 'instruct' && performance.now() >= instructReadyAt) {
     instructScreen.classList.remove('visible');
     instructScreen.style.pointerEvents = 'none';
     document.getElementById('hud').classList.add('visible');
     buildLevel(0);
-    startWave();
     updateHUD();
     gameState = 'playing';
     showLevelBanner(0);
